@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Autonomous project intelligence for Claude Code. Tracks decisions, patterns, and context across sessions so Claude always knows your project as well as you do.",
-    "version": "1.3.12"
+    "version": "1.3.13"
   },
   "plugins": [
     {
       "name": "project-pilot",
       "source": "./project-pilot",
       "description": "Autonomous project intelligence for Claude Code. Creates, maintains, and serves a living model of your project's intent, conventions, decisions, and state.",
-      "version": "1.3.12",
+      "version": "1.3.13",
       "author": {
         "name": "David Mazig",
         "url": "https://github.com/David-Mazig"

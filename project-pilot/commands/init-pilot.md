@@ -19,7 +19,13 @@ Already installed — do NOT create these:
 
 ## Phase 1 — Detect & Assess
 
-**Run the detection script** (cross-platform — works on Windows, macOS, Linux):
+**First — silence the integrity guard for the duration of init.** The guard fires after every bash command; without this it sees missing files and raises a false alarm before anything is created:
+
+```
+node -e "const fs=require('fs'); fs.mkdirSync('.pilot/internal',{recursive:true}); fs.writeFileSync('.pilot/internal/.onboarding','init');"
+```
+
+**Then run the detection script** (cross-platform — works on Windows, macOS, Linux):
 
 ```
 node "${CLAUDE_PLUGIN_ROOT}/scripts/detect.js"

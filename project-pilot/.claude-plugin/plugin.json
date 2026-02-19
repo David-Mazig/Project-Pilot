@@ -1,7 +1,7 @@
 {
   "name": "project-pilot",
   "description": "Autonomous project intelligence for Claude Code. Creates, maintains, and serves a living model of your project's intent, conventions, decisions, and state.",
-  "version": "1.3.12",
+  "version": "1.3.13",
   "author": {
     "name": "David Mazig",
     "url": "https://github.com/David-Mazig"
