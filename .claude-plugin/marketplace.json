@@ -1,13 +1,26 @@
 {
+  "name": "project-pilot",
+  "owner": {
+    "name": "David Mazig",
+    "url": "https://github.com/David-Mazig"
+  },
+  "metadata": {
+    "description": "Autonomous project intelligence for Claude Code. Tracks decisions, patterns, and context across sessions so Claude always knows your project as well as you do.",
+    "version": "1.3.12"
+  },
   "plugins": [
     {
       "name": "project-pilot",
-      "path": "project-pilot",
-      "description": "Autonomous project intelligence for Claude Code. Tracks decisions, patterns, and context across sessions so Claude always knows your project as well as you do.",
+      "source": "./project-pilot",
+      "description": "Autonomous project intelligence for Claude Code. Creates, maintains, and serves a living model of your project's intent, conventions, decisions, and state.",
       "version": "1.3.12",
-      "author": "David-Mazig",
+      "author": {
+        "name": "David Mazig",
+        "url": "https://github.com/David-Mazig"
+      },
       "homepage": "https://github.com/David-Mazig/Project-Pilot",
-      "tags": ["context", "memory", "productivity", "conventions", "architecture"]
+      "license": "MIT",
+      "category": "productivity"
     }
   ]
 }
