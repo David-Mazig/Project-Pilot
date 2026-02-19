@@ -1,0 +1,4 @@
+# Project Pilot Change Ledger
+# Automatically populated by PostToolUse hooks
+# Format: TIMESTAMP | ACTION | FILE_PATH_OR_COMMAND
+# ACTION: EDIT (file write/edit), BASH (shell command), or CREATED (onboarding)
