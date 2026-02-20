@@ -4,6 +4,8 @@
 
 Project Pilot gives Claude a persistent, self-maintaining understanding of your project — decisions, patterns, architecture, and active context — that survives across sessions. Instead of re-explaining your codebase every time, Claude reads from a live intelligence layer it writes and maintains automatically.
 
+This project is still under development.
+
 ---
 
 ## Install
