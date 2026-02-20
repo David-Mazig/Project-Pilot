@@ -6,6 +6,8 @@ Project Pilot gives Claude a persistent, self-maintaining understanding of your 
 
 ### This project is still under development.
 
+![image info](."project pilot.png")
+
 ---
 
 ## Install
