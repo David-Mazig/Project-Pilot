@@ -9,6 +9,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const os   = require('os');
 
 const CWD         = process.cwd();
 const PLUGIN_ROOT = process.env.CLAUDE_PLUGIN_ROOT || path.resolve(__dirname, '..');
@@ -109,7 +110,6 @@ try {
 
 const claudeGitignore = path.join(sentinelDir, '.gitignore');
 try {
-  // Required entries — checked individually so upgrades add missing ones
   const REQUIRED_ENTRIES = [
     '.pp-snapshot/',
     'project-pilot-initialized',
@@ -126,5 +126,72 @@ try {
     fs.writeFileSync(claudeGitignore, existing + missing.join('\n') + '\n', 'utf8');
   }
 } catch (_) {} // non-fatal
+
+// ─── enabledPlugins self-heal ─────────────────────────────────────────────────
+// The `/plugin install` command should persist "project-pilot" to enabledPlugins
+// in Claude Code's global settings.json — but it only activates in-memory and
+// the entry is never written to disk. This means the plugin works in the
+// installation session but disappears for every subsequent project and restart.
+//
+// Fix: write it here, during /init-pilot (which already works in session one).
+// After the first project is initialized, every future project gets the plugin
+// automatically — zero extra steps for any user.
+//
+// Behaviour: read → add if absent → write. Fully idempotent and non-fatal.
+// If the write fails for any reason (permissions, locked file, unexpected
+// settings format), setup continues normally and a note is printed instead.
+
+function getClaudeSettingsPath() {
+  if (process.platform === 'win32') {
+    const appData = process.env.APPDATA;
+    return appData ? path.join(appData, 'Claude', 'settings.json') : null;
+  }
+  if (process.platform === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Application Support', 'Claude', 'settings.json');
+  }
+  // Linux: prefer XDG, fall back to ~/.claude
+  const xdg = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
+  const xdgPath = path.join(xdg, 'Claude', 'settings.json');
+  if (fs.existsSync(xdgPath)) return xdgPath;
+  return path.join(os.homedir(), '.claude', 'settings.json');
+}
+
+try {
+  const settingsPath = getClaudeSettingsPath();
+
+  if (settingsPath) {
+    let settings = {};
+
+    if (fs.existsSync(settingsPath)) {
+      try {
+        settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+      } catch (_) {
+        // Malformed JSON — don't touch it, just skip silently
+        throw new Error('settings.json could not be parsed — skipping enabledPlugins write');
+      }
+    }
+
+    if (!Array.isArray(settings.enabledPlugins)) {
+      settings.enabledPlugins = [];
+    }
+
+    if (!settings.enabledPlugins.includes('project-pilot')) {
+      settings.enabledPlugins.push('project-pilot');
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+      process.stdout.write(
+        'Project Pilot registered in Claude Code settings.\n' +
+        'Commands will appear automatically in all future projects after restart.\n'
+      );
+    }
+    // Already present — nothing to do, no output needed
+  }
+} catch (e) {
+  // Fully non-fatal — setup continues, project still initializes correctly
+  process.stdout.write(
+    'Note: Could not auto-register plugin in Claude Code settings (' + e.message + ').\n' +
+    'If commands don\'t appear in other projects, restart Claude Code.\n'
+  );
+}
 
 process.stdout.write('Setup complete.\n');
