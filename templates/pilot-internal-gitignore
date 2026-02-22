@@ -1,0 +1,5 @@
+# Project Pilot internal state — not committed
+# These are session-specific tracking files, not project intelligence
+.last-synthesis
+.synthesis-count
+.onboarding
