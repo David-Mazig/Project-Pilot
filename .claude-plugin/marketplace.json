@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "project-pilot",
-      "source": ".claude-plugin",
+      "source": "./",
       "description": "Autonomous project intelligence for Claude Code. Creates, maintains, and serves a living model of your project's intent, conventions, decisions, and state.",
       "version": "1.4.4",
       "author": {
