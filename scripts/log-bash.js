@@ -36,5 +36,14 @@ process.stdin.on('end', () => {
   const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
   fs.appendFileSync(LEDGER, `${timestamp} | BASH | ${command}\n`);
 
+  // Increment pending-count counter
+  const COUNTER_FILE = path.join(PILOT_DIR, 'internal', '.pending-count');
+  try {
+    const current = fs.existsSync(COUNTER_FILE)
+      ? parseInt(fs.readFileSync(COUNTER_FILE, 'utf8').trim(), 10) || 0
+      : 0;
+    fs.writeFileSync(COUNTER_FILE, String(current + 1) + '\n', 'utf8');
+  } catch (_) {} // non-fatal
+
   process.exit(0);
 });

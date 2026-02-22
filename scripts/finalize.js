@@ -24,6 +24,8 @@ const EXPECTED = [
   '.pilot/decisions.md',
   '.pilot/internal/critical-paths.txt',
   '.pilot/internal/dependency-map.md',
+  '.pilot/internal/synthesis-instructions.md',
+  '.pilot/internal/task-execution.md',
   'CLAUDE.md',
 ];
 

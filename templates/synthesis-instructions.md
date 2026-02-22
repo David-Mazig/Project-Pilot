@@ -1,16 +1,62 @@
 # Session Synthesis Instructions
 
-When triggered by the Stop hook, follow these steps to update the Project Pilot intelligence files.
+## When to Synthesize
+
+Synthesis is self-triggered — no hook tells you when to run it. Follow these rules:
+
+**DO synthesize after:**
+- Completing a build, implementation, or refactor (files were created or changed)
+- Finishing a bug fix or feature
+- Completing a multi-step task (after the final step)
+- The developer says they're done or wrapping up
+
+**DO NOT synthesize after:**
+- Answering a question or explaining something (no files changed)
+- Presenting a plan and asking "Proceed?" (waiting for input)
+- Asking for clarification
+- A conversational turn where no work was done
+- Reading files to investigate something without making changes
+
+**The heuristic:** Did you just complete work that changed files? → Synthesize. Are you mid-conversation or waiting for input? → Don't.
+
+**Safety net:** If synthesis is missed (crash, user closes terminal), session-start.js detects unsynthesized changes on the next startup and triggers recovery. Nothing is lost.
+
+## How to Run Synthesis
+
+When it's time to synthesize, follow these steps:
+
+### Step 0 — Determine Session Weight
+
+Read `.pilot/internal/change-ledger.log` and count changes since the timestamp in `.pilot/internal/.last-synthesis` (or all changes if no timestamp exists).
+
+- **Light** (< 6 changes): Core Updates + Convention Lifecycle only
+- **Medium** (6–15 changes): Add Deep Analysis (Pattern Discovery)
+- **Heavy** (16+ changes, OR synthesis count is a multiple of 5): Add Decision Revisitation + Restructuring
+
+Read `.pilot/internal/.synthesis-count`, increment by 1, and write the new value back (create the file with value `1` if it doesn't exist). This is the running total of completed syntheses for this project.
 
 ## Core Updates (always)
 1. Read .pilot/internal/change-ledger.log for the recent changes
 2. Update .pilot/active-context.md to reflect the current state of work
-3. Update .pilot/progress.md — categorize features accurately:
-   - **Verified**: ONLY if tests exist and passed during this session, or developer explicitly confirmed it works
-   - **Implemented (Unverified)**: Code was written but no tests ran or no confirmation. Note what verification is missing.
-   - **Has Known Issues**: If errors, failures, or TODO/FIXME comments were noted. Include specific issue descriptions.
+3. Update .pilot/progress.md — categorize features accurately using test results if available:
+
+   **Check `.pilot/internal/.test-results` first.** If the file exists, read it and use its values:
+   - `TEST_RESULT=PASS` + feature in `COVERED_FEATURES` → move to **"Verified (tested [date])"**
+   - `TEST_RESULT=FAIL` + feature in `FAILING_TESTS` → move to **"Has Known Issues: [exact test name]"**
+   - Features not in COVERED_FEATURES remain "Implemented (Unverified)"
+
+   **If `.test-results` does not exist** (no test run this session):
+   - **Verified**: ONLY if developer explicitly confirmed it works
+   - **Implemented (Unverified)**: Code was written but no tests ran. Note what verification is missing.
+   - **Has Known Issues**: If errors, failures, or TODO/FIXME comments were noted.
    - **In Progress**: Work started but not finished.
-   - **Never assume a feature works just because code was written.** Default to "Implemented (Unverified)" unless there's evidence.
+
+   **Never assume a feature works just because code was written.** Default to "Implemented (Unverified)" unless `.test-results` says PASS.
+
+   After updating progress.md, delete `.test-results` so it doesn't carry over to the next session:
+   ```bash
+   rm -f .pilot/internal/.test-results
+   ```
 4. If any NEW decisions were made (architectural choices, pattern selections, technology decisions), add them to the Active Decisions section of .pilot/decisions.md with full reasoning, alternatives, and revisit conditions. If a new decision contradicts or replaces an existing active decision, move the old one to the Superseded Decisions section. If an approach was tried and rejected, add it to Abandoned Approaches.
 
 ## Convention Lifecycle Management (always)
@@ -137,10 +183,78 @@ Keep synthesis output to the developer short — at most a few lines:
 
 Everything else happens silently in the files. The goal is zero developer effort.
 
+## Suggested Next Tasks — Decomposition Rule
+
+When synthesis surfaces a "Next Up" or recommended action, apply this rule:
+
+**If the suggested task involves building, implementing, creating, or refactoring across 3+ files — express it as decomposed sub-tasks, never as a single monolithic instruction.**
+
+Instead of:
+> Next: Build the authentication system
+
+Write:
+> Next: Build the authentication system — use the task execution protocol:
+>   Task 1 — auth/middleware.js: JWT validation + route guard
+>   Task 2 — auth/service.js: token creation, refresh, revocation
+>   Task 3 — auth/routes.js: login, logout, refresh endpoints
+>   Tell Claude: "Follow .pilot/internal/task-execution.md for this"
+
+Single-file suggestions or small targeted fixes do NOT need decomposition — write them normally.
+
+This prevents the output token limit error that occurs when Claude attempts to generate a large system in a single response.
+
+## Before Starting Synthesis — Write Lock File
+
+**First action of every synthesis:** Write `.pilot/internal/.synthesis-lock` with content `in-progress`.
+This lets session-start detect an interrupted synthesis if Claude crashes or the session ends unexpectedly.
+
+Use the Write tool:
+```
+File: .pilot/internal/.synthesis-lock
+Content: in-progress
+```
+
 ## Final Step — Always (do this last, after all files are written)
 
-Write the current UTC timestamp to `.pilot/internal/.last-synthesis` using the Write tool.
+Complete these three actions in order as the absolute final step:
+
+**1. Rotate the change ledger** — archive synthesized entries to keep the active ledger lean.
+Run this node command:
+
+```
+node -e "
+const fs=require('fs');
+const LEDGER='.pilot/internal/change-ledger.log';
+const ARCHIVE='.pilot/internal/change-ledger-archive.log';
+const LAST='.pilot/internal/.last-synthesis';
+if(!fs.existsSync(LEDGER)){process.exit(0);}
+const lines=fs.readFileSync(LEDGER,'utf8').split('\n');
+const header=lines.filter(l=>l.startsWith('#'));
+const data=lines.filter(l=>l.trim()&&!l.startsWith('#'));
+const lastTs=fs.existsSync(LAST)?fs.readFileSync(LAST,'utf8').trim():'';
+const toArchive=lastTs?data.filter(l=>l.split(' | ')[0]<=lastTs):[];
+const toKeep=lastTs?data.filter(l=>l.split(' | ')[0]>lastTs):data;
+if(toArchive.length>0){fs.appendFileSync(ARCHIVE,toArchive.join('\n')+'\n','utf8');}
+fs.writeFileSync(LEDGER,header.join('\n')+'\n'+(toKeep.length?toKeep.join('\n')+'\n':''),'utf8');
+fs.writeFileSync('.pilot/internal/.pending-count',String(toKeep.length)+'\n','utf8');
+"
+```
+
+**2. Stamp `.last-synthesis`** — write the current UTC timestamp using the Write tool.
 Format: `2025-01-15T10:30:00Z` (ISO 8601, no milliseconds).
 
-This must be the absolute last action of synthesis. Writing it early would cause the next session
-to miss any changes that occurred after the timestamp but before synthesis completed.
+This must happen AFTER the rotation so the archived entries include everything up to this moment.
+
+**2b. Reset `.pending-count` to `0`** — run immediately after stamping:
+```bash
+echo "0" > .pilot/internal/.pending-count
+```
+The rotation writes `toKeep.length` to the counter, but those entries are now synthesized (the stamp just moved lastTs past them). Without this reset the counter stays stale until the next edit. Zero is correct: no unsynthesized changes exist the moment synthesis finishes.
+
+**3. Delete `.synthesis-lock`** — use the Bash tool:
+```bash
+rm .pilot/internal/.synthesis-lock
+```
+
+This is the signal that synthesis completed successfully. If this step is not reached (crash, abort),
+session-start will detect the lock file and block work until synthesis is re-run.

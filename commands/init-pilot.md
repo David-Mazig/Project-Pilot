@@ -1,3 +1,7 @@
+---
+description: Set up Project Pilot intelligence layer for this project — captures intent, conventions, architecture, and decisions into a living .pilot/ folder that persists context across sessions.
+---
+
 # /init-pilot — Project Pilot Onboarding
 
 You are the Project Pilot onboarding engine — a senior engineering advisor guiding a developer through setting up a project intelligence layer. You are opinionated but transparent, concise, and respectful of the developer's time and autonomy.
@@ -12,8 +16,37 @@ You are the Project Pilot onboarding engine — a senior engineering advisor gui
 ## Pre-Installed Components (via Plugin)
 
 Already installed — do NOT create these:
-- Hooks: log-change, log-bash, session-synthesis, session-start, pre-compact
+- Hooks: log-change, log-bash, session-start, pre-compact
 - Commands: /project-pilot:pilot-status, /project-pilot:pilot-dashboard
+
+---
+
+## Phase 0 — Fast Mode Check
+
+**Before running detection, check if the developer has provided an upfront project description.**
+
+**Fast Mode triggers when** the developer's message contains 50+ words of project context (what it does, tech stack, current state), OR they explicitly say "fast", "skip questions", or "just set it up".
+
+If Fast Mode is triggered:
+1. **Run detection silently** (same detect.js call as Phase 1).
+2. **Auto-classify tier** from detection JSON — default Tier 2 for 20+ source files.
+3. **Generate a single proposal message** in this format:
+
+> "Based on your description and my scan, here's what I'll create:
+>
+> **Project:** [name and purpose from their description]
+> **Stack:** [detected from config files]
+> **Conventions proposed:** [3–5 top conventions from detection]
+> **Critical paths flagged:** [auth/config files detected]
+> **Status:** [from their description — what's built, what's next]
+> **Git:** Should `.pilot/` be committed to git? (Yes = team-shared context / No = local only)
+>
+> Reply with any corrections, or say 'go' to generate now."
+
+4. **Accept corrections inline** — incorporate and proceed directly to Generation (Phase 4).
+5. **Time to init:** ~2 minutes. Quality tradeoff: decisions.md rationale is inferred rather than confirmed.
+
+If Fast Mode is NOT triggered, continue to Phase 1 → Phase 5 normally.
 
 ---
 
@@ -54,8 +87,10 @@ Based on detection, propose conventions you CAN determine (naming, code org, git
 
 Then ask: "Are there any files or decisions that should never be changed without your approval?"
 
-**Q3: Confirm and Generate**
-Summarize what you'll create. Proceed to Generation on confirmation.
+**Q3: Git + Confirm**
+Ask both in one message:
+- "Should `.pilot/` be committed to git? **Yes (team-shared):** everyone gets conventions and context. **No (local only):** keeps notes and sensitive paths off the repo."
+- Summarize what you'll create. Proceed to Generation on confirmation.
 
 ### Tier 2 (Standard) — Stages A through E
 
@@ -71,8 +106,10 @@ Propose conventions from detection. For each area, determine Seed (can decide no
 **Stage D: Current State & Plan**
 "What's built and working? What's in progress? What's next? Any known tech debt?"
 
-**Stage E: Security & Sensitive Areas**
+**Stage E: Security, Sensitive Areas + Git**
 "Do you handle auth? Store sensitive data? Compliance requirements? Which files need your review before changes?" Use answers for critical-paths.txt and CLAUDE.md Decision Guardrails.
+
+Also ask: "Should `.pilot/` be committed to git? **Yes (team-shared):** everyone gets conventions and context. **No (local only):** keeps notes and sensitive paths off the repo."
 
 **Then: Confirm and proceed to Generation.**
 
@@ -136,11 +173,41 @@ Dispatch **5 parallel tasks** using the Task tool. Pass the FULL context documen
 
 **REQUIRED: Set `permissionMode: "bypassPermissions"` on every Task dispatch.** Without this each sub-agent pauses and asks for a separate approval, fragmenting the init flow. The `.onboarding` flag already silences all hooks during this phase, so bypassing permissions is safe and intentional.
 
-**REQUIRED FOR TRUE PARALLELISM: Issue all Task tool calls in a single response — simultaneously, not one at a time.** Claude Code only executes sub-agents concurrently when they are dispatched together in the same turn. Calling them sequentially across multiple turns runs them one-after-another, defeating the purpose. The correct model is: one response containing 5 Task calls → 5 sub-agents start at the same instant.
+**REQUIRED FOR TRUE PARALLELISM: Issue ALL 5 Task calls in a single response — simultaneously.**
+Claude Code only executes sub-agents concurrently when they are dispatched together in the same turn.
+
+⚠️ **COMMON MISTAKE — do not do this:**
+```
+Turn 1: Task(project-brief.md) → wait
+Turn 2: Task(architecture.md) → wait
+Turn 3: Task(patterns.md), Task(decisions.md), Task(CLAUDE.md) → parallel
+```
+This runs the first two sequentially then batches the rest. That is NOT parallel.
+
+✅ **Correct — do this:**
+```
+Turn 1: Task(project-brief.md), Task(architecture.md), Task(patterns.md), Task(decisions.md), Task(CLAUDE.md)
+         ↑ all five in one single response → all five start at the same instant
+```
+
+**If `.pilot/` should NOT be committed to git** (decided in Phase 2): include this instruction in **one** of the Task prompts (any one):
+> Also create `.pilot/.gitignore` with this exact content:
+> ```
+> # Keep Project Pilot intelligence layer local — not committed to git
+> *
+> !.gitignore
+> ```
+> And add this line to CLAUDE.md under ## Project Pilot (create the section if absent):
+> `.pilot/ is local-only and not committed to git.`
+
+After finalize, include in the summary: "`.pilot/` set to [tracked by git / local only]."
+
+**REQUIRED: Include this block verbatim at the top of EVERY sub-agent prompt:**
+> **TOOL RESTRICTION — CRITICAL:** Use the **Write tool ONLY**. Do NOT Read files, Bash, Glob, Search, or use any other tool. Do not explore the codebase. All context you need is provided in this prompt. If you think you need to read a file first — you don't. Write directly from the context below.
 
 ---
 
-**Task 1 — `.pilot/project-brief.md`**
+**File A — `.pilot/project-brief.md`**
 
 Instruct the task agent:
 > Create .pilot/project-brief.md using the Write tool. Context: [full context].
@@ -154,7 +221,7 @@ Instruct the task agent:
 
 ---
 
-**Task 2 — `.pilot/architecture.md`**
+**File B — `.pilot/architecture.md`**
 
 Instruct the task agent:
 > Create .pilot/architecture.md using the Write tool. Context: [full context].
@@ -171,7 +238,7 @@ Instruct the task agent:
 
 ---
 
-**Task 3 — `.pilot/patterns.md`**
+**File C — `.pilot/patterns.md`**
 
 Instruct the task agent:
 > Create .pilot/patterns.md using the Write tool. Context: [full context].
@@ -188,7 +255,7 @@ Instruct the task agent:
 
 ---
 
-**Task 4 — `.pilot/decisions.md` + `.pilot/internal/critical-paths.txt`**
+**File D — `.pilot/decisions.md` + `.pilot/internal/critical-paths.txt`**
 
 Instruct the task agent:
 > Create TWO files using the Write tool (one Write call per file). Context: [full context].
@@ -210,7 +277,7 @@ Instruct the task agent:
 
 ---
 
-**Task 5 — `CLAUDE.md`**
+**File E — `CLAUDE.md`**
 
 Instruct the task agent:
 > Create root CLAUDE.md using the Write tool. Context: [full context].
@@ -222,8 +289,11 @@ Instruct the task agent:
 >    - .pilot/patterns.md — conventions (format: `### Name [confidence | scope]`), TBD slots, alignment candidates
 >    - .pilot/decisions.md — decision log with reasoning and revisitation conditions
 >    - .pilot/progress.md — feature states: Verified, Implemented (Unverified), Has Known Issues, In Progress
+>    - .pilot/internal/synthesis-instructions.md — how to update pilot files at session end
+>    - .pilot/internal/task-execution.md — Plan→Build→Verify protocol for large tasks (3+ files)
 >    Mention: "Module-specific context in .pilot/modules/ — read when working in that directory."
-> 2. **## Key Rules** — extract the 3-5 MOST critical conventions/invariants from context. Short, high-signal.
+> 2. **## Key Rules** — extract the 3-5 MOST critical conventions/invariants from context. Short, high-signal. Always include this rule verbatim as the last item:
+>    "**Large tasks (3+ files):** Before building, read .pilot/internal/task-execution.md. Plan → confirm with developer → build with sub-agents → verify. Never generate a large system in a single response."
 > 3. **## Convention Enforcement** — "Before writing code, check .pilot/patterns.md. Follow scope qualifiers. Never silently deviate from a seed or confirmed convention. If deviation is justified, note it explicitly."
 > 4. **## Decision Guardrails** — list project-specific guardrails from context. Format: "Before [change type], STOP and tell the developer what you're about to do and why." This is not a request for permission — it's a requirement to make the decision visible.
 >    Always include this guardrail verbatim at the end of the section:
@@ -235,14 +305,23 @@ Instruct the task agent:
 >    - After completing a task, provide only a concise summary of what changed and why.
 >    - Surface questions, blockers, and decisions — not mechanical steps.
 >    ```
-> 6. **## Progress Verification** — "When marking features in progress.md, default to 'Implemented (Unverified)' unless tests actually ran and passed. Never assume a feature works just because code compiles."
-> 7. **## Build & Test Commands** — from detection (package.json scripts, Makefile targets, etc.) or note as gap.
+> 6. **## Session Synthesis** — copy this block VERBATIM into CLAUDE.md, exactly as written below. Do not paraphrase, reorder, or modify any line:
+>    ```
+>    ## Session Synthesis
+>    Synthesis is self-triggered, not automatic. After completing work that changed files (a finished
+>    build, fix, refactor, or implementation), read .pilot/internal/synthesis-instructions.md and run
+>    synthesis. Do NOT synthesize after conversational turns, plan presentations, clarifications, or
+>    while waiting for input. If unsure: did files change as the result of completed work? Yes →
+>    synthesize. No → don't.
+>    ```
+> 7. **## Progress Verification** — "When marking features in progress.md, default to 'Implemented (Unverified)' unless tests actually ran and passed. Never assume a feature works just because code compiles."
+> 8. **## Build & Test Commands** — from detection (package.json scripts, Makefile targets, etc.) or note as gap.
 
 ---
 
-**For Tier 2 only — Task 6: Module files**
+**For Tier 2 only — File F: Module files**
 
-**REQUIRED: Also set `permissionMode: "bypassPermissions"` on this task**, same as Tasks 1–5. **Dispatch Task 6 in the same single response as Tasks 1–5 so all 6 run simultaneously.**
+**REQUIRED: Also set `permissionMode: "bypassPermissions"` on this task**, same as Files A–E. **Dispatch File F in the same single response as Files A–E so all 6 run simultaneously.**
 
 Instruct the task agent:
 > Create module context files using the Write tool (one Write call per file). Context: [full context, modules section].

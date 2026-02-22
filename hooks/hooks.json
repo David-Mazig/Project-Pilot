@@ -1,5 +1,4 @@
 {
-  "description": "Project Pilot \u2014 autonomous project intelligence hooks",
   "hooks": {
     "PreToolUse": [
       {
@@ -31,17 +30,11 @@
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/post-bash-guard.js\""
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/post-test.js\""
+          },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-synthesis.js\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/post-bash-guard.js\""
           }
         ]
       }

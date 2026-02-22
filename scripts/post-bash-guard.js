@@ -25,8 +25,11 @@ const SNAPSHOT_LOCAL = path.join(CLAUDE_DIR, '.pp-snapshot');
 const SENTINEL_LOCAL = path.join(CLAUDE_DIR, 'project-pilot-initialized');
 const ONBOARDING     = path.join(PILOT_DIR, 'internal', '.onboarding');
 
-const CWD_HASH     = crypto.createHash('md5').update(CWD).digest('hex').slice(0, 16);
-const SNAPSHOT_TMP = path.join(os.tmpdir(), 'pp-' + CWD_HASH);
+const CWD_HASH   = crypto.createHash('md5').update(CWD).digest('hex').slice(0, 16);
+const CACHE_BASE = process.env.XDG_CACHE_HOME
+  ? path.join(process.env.XDG_CACHE_HOME, 'project-pilot')
+  : path.join(os.homedir(), '.cache', 'project-pilot');
+const SNAPSHOT_TMP = path.join(CACHE_BASE, 'pp-' + CWD_HASH);
 const SENTINEL_TMP = path.join(SNAPSHOT_TMP, '.sentinel');
 
 // Skip during onboarding

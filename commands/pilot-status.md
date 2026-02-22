@@ -1,3 +1,7 @@
+---
+description: Quick status report — shows current work, verified vs unverified features, known issues, pending decisions, and synthesis health from the .pilot/ intelligence layer.
+---
+
 # /project-pilot:pilot-status — Project Intelligence Status
 
 You are providing a concise status report of the project's current state using the Project Pilot intelligence files.
@@ -28,7 +32,7 @@ You are providing a concise status report of the project's current state using t
 - Under Observation: [count] TBD slots remaining
 - Alignment Candidates: [count] files flagged for convention alignment, or "None"
 
-**Next Up:** [From active-context.md]
+**Next Up:** [From active-context.md — if this involves building/implementing/refactoring across 3+ files, break it into named sub-tasks with file ownership. Format: "Task 1 — file(s): what. Task 2 — file(s): what. Tell Claude: 'Follow .pilot/internal/task-execution.md for this'". Single-file tasks need no decomposition.]
 
 **Recent Changes This Session:** [From change-ledger.log — summarize, don't list every line]
 

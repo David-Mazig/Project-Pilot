@@ -45,7 +45,12 @@ write('.pilot/internal/change-ledger.log',
 write('.pilot/internal/.gitignore',
   '.last-synthesis\n' +
   '.synthesis-count\n' +
-  '.onboarding\n'
+  '.onboarding\n' +
+  '.synthesis-lock\n' +
+  '.pending-count\n' +
+  '.test-results\n' +
+  '.template-hashes/\n' +
+  'change-ledger-archive.log\n'
 );
 
 // ─── Synthesis instructions (copied from plugin template) ────────────────────
@@ -61,6 +66,37 @@ try {
     'Update .pilot/ files to reflect session changes. See plugin documentation.\n'
   );
 }
+
+// ─── Task execution protocol (copied from plugin template) ───────────────────
+
+const taskSrc  = path.join(PLUGIN_ROOT, 'templates', 'task-execution.md');
+const taskDest = path.join(CWD, '.pilot/internal/task-execution.md');
+try {
+  fs.copyFileSync(taskSrc, taskDest);
+} catch (e) {
+  // Fallback: write a minimal placeholder if template not found
+  fs.writeFileSync(taskDest,
+    '# Task Execution Protocol\n' +
+    'For large tasks (3+ files), use Plan → Build → Verify. See plugin documentation.\n'
+  );
+}
+
+// ─── Write initial template hashes (enables hash-guarded sync in session-start) ─
+// These hashes let session-start know whether the developer has customised the
+// template files. If the file still matches the hash we wrote, it's safe to update.
+// If it differs, the developer has customised it — leave it alone.
+const crypto = require('crypto');
+const HASH_DIR_SETUP = path.join(CWD, '.pilot/internal/.template-hashes');
+fs.mkdirSync(HASH_DIR_SETUP, { recursive: true });
+
+function writeInitialHash(filePath, hashFilePath) {
+  try {
+    const h = crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+    fs.writeFileSync(hashFilePath, h + '\n', 'utf8');
+  } catch (_) {} // non-fatal
+}
+writeInitialHash(synthDest, path.join(HASH_DIR_SETUP, 'synthesis-instructions.sha'));
+writeInitialHash(taskDest,  path.join(HASH_DIR_SETUP, 'task-execution.sha'));
 
 // ─── Dependency map placeholder ───────────────────────────────────────────────
 

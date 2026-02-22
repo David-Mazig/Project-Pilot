@@ -5,7 +5,7 @@
 // 1. Logs file edits to .pilot/internal/change-ledger.log for session synthesis
 // 2. Checks if edited file matches a critical path pattern — if so, outputs
 //    an immediate warning to Claude via stderr (exit code 2) so it can
-//    self-correct mid-session without waiting for the Stop hook.
+//    self-correct mid-session without waiting for synthesis.
 
 const fs = require('fs');
 const path = require('path');
@@ -58,6 +58,15 @@ process.stdin.on('end', () => {
   // Log the change (store normalized forward-slash path for consistency)
   const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
   fs.appendFileSync(LEDGER, `${timestamp} | EDIT | ${normalizedPath}\n`);
+
+  // Increment pending-count (O(1) counter — avoids full ledger scan in session-start)
+  const COUNTER_FILE = path.join(PILOT_DIR, 'internal', '.pending-count');
+  try {
+    const current = fs.existsSync(COUNTER_FILE)
+      ? parseInt(fs.readFileSync(COUNTER_FILE, 'utf8').trim(), 10) || 0
+      : 0;
+    fs.writeFileSync(COUNTER_FILE, String(current + 1) + '\n', 'utf8');
+  } catch (_) {} // non-fatal
 
   // Critical path check — real-time safety net
   let criticalMatch = false;
