@@ -3,6 +3,10 @@
 # Project Pilot — User Manual
 Version 1.4.4 | 2026-02-22
 
+### This project is still under development.
+
+![.project pilot.png](https://github.com/David-Mazig/Project-Pilot/blob/main/Project%20Pilot.png)
+
 ---
 
 ## Overview
